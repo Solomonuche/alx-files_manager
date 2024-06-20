@@ -30,13 +30,15 @@ const UsersController = {
   },
   getMe: async (req, res) => {
     const token = req.get('X-Token');
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
     const key = `auth_${token}`;
     const userId = await redisClient.get(key);
-    console.log(userId);
 
     const collection = dbClient.client.db().collection('users');
     const user = await collection.findOne({ _id: new ObjectId(userId) });
-    console.log(user);
+
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
