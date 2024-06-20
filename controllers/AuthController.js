@@ -7,16 +7,26 @@ const { v4: uuidv4 } = require('uuid');
 const AuthController = {
   getConnect: async (req, res) => {
     const authHeader = req.get('Authorization');
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (!authHeader.startsWith('Basic ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
     const [, authCredentail] = authHeader.split(' ');
     const decodedAuthCredentail = Buffer.from(authCredentail, 'base64').toString('utf-8');
     const [email, password] = decodedAuthCredentail.split(':');
 
     // check is user exist in the database
     const collection = await dbClient.client.db().collection('users');
-    const user = await collection.findOne({ email, password: hash(password) });
+    const user = await collection.findOne({ email });
 
     if (!user) {
       return res.status(401).json({ error: 'Unathorized' });
+    }
+
+    if (user.password !== hash(password)) {
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     // create a token and save the user's id in the redis client
@@ -35,6 +45,9 @@ const AuthController = {
      */
 
     const token = req.get('X-Token');
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
     const key = `auth_${token}`;
     const userId = await redisClient.get(key);
 
@@ -43,7 +56,7 @@ const AuthController = {
     }
 
     await redisClient.del(key);
-    return res.json();
+    return res.status(204).json();
   },
 };
 
